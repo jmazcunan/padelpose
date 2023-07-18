@@ -37,7 +37,26 @@ base_options = python.BaseOptions(model_asset_path='pose_landmarker.task')
 options = vision.PoseLandmarkerOptions(
     base_options=base_options,
     output_segmentation_masks=True)
+
 detector = vision.PoseLandmarker.create_from_options(options)
+
+
+
+
+BaseOptions = mp.tasks.BaseOptions
+PoseLandmarker = mp.tasks.vision.PoseLandmarker
+PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
+VisionRunningMode = mp.tasks.vision.RunningMode
+
+# Create a pose landmarker instance with the video mode:
+options = PoseLandmarkerOptions(
+    base_options=BaseOptions(model_asset_path='pose_landmarker.task'),
+    running_mode=VisionRunningMode.VIDEO)
+
+landmarker = PoseLandmarker.create_from_options(options)
+
+st.success("landmarker created")
+
 
 # STEP 3: Load the input image.
 image = mp.Image.create_from_file("image.jpg")
