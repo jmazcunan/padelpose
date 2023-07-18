@@ -13,13 +13,24 @@ st.set_page_config(page_title="Padel Pose", page_icon="🎾", layout="centered",
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+import os
 
 from helper import draw_landmarks_on_image
 
-url = 'https://cdn.pixabay.com/photo/2019/03/12/20/39/girl-4051811_960_720.jpg'
-r = requests.get(url, allow_redirects=True)
+def download(url, filename):
+    if not os.path.exists(filename):
+        r = requests.get(url, allow_redirects=True)
+        open(filename, 'wb').write(r.content)
 
-open('image.jpg', 'wb').write(r.content)
+
+# url = 'https://cdn.pixabay.com/photo/2019/03/12/20/39/girl-4051811_960_720.jpg'
+# r = requests.get(url, allow_redirects=True)
+
+# open('image.jpg', 'wb').write(r.content)
+
+download(url='https://cdn.pixabay.com/photo/2019/03/12/20/39/girl-4051811_960_720.jpg', filename='image.jpg')
+download(url='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task ', filename='pose_landmarker.task')
+
 
 # STEP 2: Create an PoseLandmarker object.
 base_options = python.BaseOptions(model_asset_path='pose_landmarker.task')
