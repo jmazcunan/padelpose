@@ -33,12 +33,12 @@ download(url='https://storage.googleapis.com/mediapipe-models/pose_landmarker/po
 
 
 # STEP 2: Create an PoseLandmarker object.
-base_options = python.BaseOptions(model_asset_path='pose_landmarker.task')
-options = vision.PoseLandmarkerOptions(
-    base_options=base_options,
-    output_segmentation_masks=True)
+# base_options = python.BaseOptions(model_asset_path='pose_landmarker.task')
+# options = vision.PoseLandmarkerOptions(
+#     base_options=base_options,
+#     output_segmentation_masks=True)
 
-detector = vision.PoseLandmarker.create_from_options(options)
+# detector = vision.PoseLandmarker.create_from_options(options)
 
 
 
