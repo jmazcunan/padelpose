@@ -76,7 +76,9 @@ fps_input = int(cap.get(cv2.CAP_PROP_FPS))
 st.info(str(width)+"-"+str(height)+" - " + str(fps_input))
 
 ## Recording
-codec = cv2.VideoWriter_fourcc('a','v','c','1')
+#codec = cv2.VideoWriter_fourcc('a','v','c','1')
+codec = cv2.VideoWriter_fourcc(*"mp4v")
+
 
 output_filename = 'output1.mp4'
 output = cv2.VideoWriter(output_filename, codec, fps_input, (width,height))
