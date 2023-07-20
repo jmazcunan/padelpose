@@ -1,8 +1,8 @@
 import streamlit as st
 
 import streamlit.components.v1 as components
-# import wget
-
+import io
+import av
 import cv2
 from mediapipe import solutions
 from mediapipe.framework.formats import landmark_pb2
@@ -81,34 +81,9 @@ with st.expander("Video input", expanded = not(st.session_state.processed)):
     fps_input = int(cap.get(cv2.CAP_PROP_FPS))
     st.info(str(width)+"-"+str(height)+" - " + str(fps_input))
 
-    ## Recording
-    # codec = cv2.VideoWriter_fourcc('a','v','c','1')
-    #codec = cv2.VideoWriter_fourcc(*"mp4v")
-    # codec = cv2.VideoWriter_fourcc('M','J','P','G')
-    # codec = cv2.VideoWriter_fourcc(*'XVID')
-
-    codec = cv2.VideoWriter_fourcc(*'MJPG')
-
-    import io
-    import av
 
     # output_filename = 'output1.mp4'+".tmp"
     # output = cv2.VideoWriter(output_filename, codec, fps_input, (width,height))
-
-    output_memory_file = io.BytesIO()
-    output = av.open(output_memory_file, 'w', format="mp4")  # Open "in memory file" as MP4 video output
-    stream = output.add_stream('h264', str(fps_input))  # Add H.264 video stream to the MP4 container, with framerate = fps.
-    stream.width = width  # Set frame width
-    stream.height = height  # Set frame height
-    #stream.pix_fmt = 'yuv444p'   # Select yuv444p pixel format (better quality than default yuv420p).
-    stream.pix_fmt = 'yuv420p'   # Select yuv420p pixel format for wider compatibility.
-    stream.options = {'crf': '17'}  # Select low crf for high quality (the price is larger file size).
-
-
-
-    save_output = True
-
-
 
     if st.button("Process"):
         
@@ -171,7 +146,7 @@ with st.expander("Video input", expanded = not(st.session_state.processed)):
 
         # When everything done, release the video capture object
         cap.release()
-        st.session_state.mp_images = mp_images
+        #st.session_state.mp_images = mp_images
         st.session_state.detection_results = detection_results
         st.session_state.processed = True
         st.experimental_rerun()
@@ -187,10 +162,28 @@ with st.expander("Video input", expanded = not(st.session_state.processed)):
 
         # detection_results = []
 if st.session_state.processed:
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    st.write(fps)
     pose_landmark_names = pose_landmark_id.keys()
     sel_landmark_ids = st.multiselect("Landmark", pose_landmark_id)
     landmark_ids = [pose_landmark_id[sel_landmark_id] for sel_landmark_id in sel_landmark_ids]
 
+    output_memory_file = io.BytesIO()
+    output = av.open(output_memory_file, 'w', format="mp4")  # Open "in memory file" as MP4 video output
+    stream = output.add_stream('h264', str(fps_input))  # Add H.264 video stream to the MP4 container, with framerate = fps.
+    stream.width = width  # Set frame width
+    stream.height = height  # Set frame height
+    #stream.pix_fmt = 'yuv444p'   # Select yuv444p pixel format (better quality than default yuv420p).
+    stream.pix_fmt = 'yuv420p'   # Select yuv420p pixel format for wider compatibility.
+    stream.options = {'crf': '17'}  # Select low crf for high quality (the price is larger file size).
+
+
+
+    save_output = True
+    progress_bar = st.progress(0, text="Generating output video")
+        
+    frame_idx = 0
+    frame_count = cap.get(7)
 
     if st.button("Generate video"):
 
@@ -202,6 +195,19 @@ if st.session_state.processed:
         figs = []
         prev_landmarks = []
         for index, detection_result in enumerate(st.session_state.detection_results):
+
+            #while(cap.isOpened()):
+            progress_bar.progress(frame_idx/frame_count, text="Generating output video: "+str(frame_idx/frame_count))
+            frame_idx+=1
+
+            # Capture frame-by-frame
+            ret, frame = cap.read()
+            if ret == True:
+
+                numpy_frame_from_opencv = frame.copy()
+
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=numpy_frame_from_opencv)
+                
             mp_image = st.session_state.mp_images[index]
             image = mp_image
             # pose_landmarker_result = landmarker.detect_for_video(mp_image, timestamp_ms=timestamp)
@@ -278,23 +284,3 @@ if st.session_state.processed:
             #video_bytes = output_memory_file.read()  # Convert BytesIO to bytes array
             #st.video(video_bytes)
             st.video(output_memory_file)  # Streamlit supports BytesIO object - we don't have to convert it to bytes array.
-
-
-
-
-            # os.system('ffmpeg -i {} -vcodec libx264 {}'.format(output_filename, output_filename.replace('.tmp', '')))
-
-            # video_file = open(output_filename.replace('.tmp', ''), 'rb')
-            # video_bytes = video_file.read()
-
-            # st.video(video_bytes)
-
-
-            # os.system('ffmpeg -i {} -vcodec libx264 {}'.format(output_filename, output_filename.replace('.tmp', '')))
-
-            # video_file = open(output_filename.replace('.tmp', ''), 'rb')
-            # video_bytes = video_file.read()
-
-            # st.video(video_bytes)
-
-        #     """
