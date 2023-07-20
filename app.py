@@ -81,11 +81,11 @@ st.info(str(width)+"-"+str(height)+" - " + str(fps_input))
 # codec = cv2.VideoWriter_fourcc('M','J','P','G')
 # codec = cv2.VideoWriter_fourcc(*'XVID')
 
-codec = cv2.VideoWriter_fourcc('H','2','6','4')
+codec = cv2.VideoWriter_fourcc(*'MJPG')
 
 
 
-output_filename = 'output1.mp4'
+output_filename = 'output1.mp4'+".tmp"
 output = cv2.VideoWriter(output_filename, codec, fps_input, (width,height))
 
 save_output = True
@@ -217,7 +217,10 @@ if st.button("Process"):
 
     if save_output:
         output.release()
-        video_file = open(output_filename, 'rb')
+
+        os.system('ffmpeg -i {} -vcodec libx264 {}'.format(output_filename, output_filename.replace('.tmp', '')))
+
+        video_file = open(output_filename.replace('.tmp', ''), 'rb')
         video_bytes = video_file.read()
 
         st.video(video_bytes)
