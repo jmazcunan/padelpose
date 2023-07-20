@@ -5,9 +5,12 @@ import dataclasses
 from typing import List, Mapping, Optional, Tuple, Union
 import requests
 import os
-#import plotly.express as px
+import plotly.express as px
 import math
 import cv2
+import plotly.graph_objects as go
+import pandas as pd
+
 
 
 _PRESENCE_THRESHOLD = 0.5
@@ -92,6 +95,7 @@ def draw_landmark_custom(
   if image.shape[2] != _BGR_CHANNELS:
     raise ValueError('Input image must contain three channel bgr data.')
   image_rows, image_cols, _ = image.shape
+
   idx_to_coordinates = {}
 
   new_landmarks = []
@@ -149,9 +153,20 @@ def draw_landmark_custom(
   return new_landmarks
   
       
-def draw_landmarks_on_image(rgb_image, detection_result, landmark_id=[], previous_landmark_px = []):
+def draw_landmarks_track(rgb_image, detection_result, landmark_id=[], previous_landmark_px = [], alpha = 1):
   pose_landmarks_list = detection_result.pose_landmarks
+
+  # Create a black canvas of the same size as the image
+  height, width, channels = rgb_image.shape
+  black_canvas = np.zeros((height, width, channels), dtype=np.uint8)
+
+  # Scale the image's pixel values by the alpha value to fade it
+  faded_image = cv2.addWeighted(rgb_image, alpha, black_canvas, 1 - alpha, 0)
+  rgb_image = np.copy(faded_image)
+
   annotated_image = np.copy(rgb_image)
+
+
   
   # Loop through the detected poses to visualize.
   for idx in range(len(pose_landmarks_list)):
@@ -344,4 +359,56 @@ def draw_3d_world_plotly(detection_result):
     #   pose_landmarks_proto,
     #   solutions.pose.POSE_CONNECTIONS,
     #   solutions.drawing_styles.get_default_pose_landmarks_style())
+  return fig
+
+def plot_landmark_trajectory(X,Y,Z,VIS,landmark_id):
+  X_np = np.array(X)
+  Y_np = np.array(Y)
+  Z_np = np.array(Z)
+  VIS_np = np.array(VIS)
+
+  X = X_np[:,landmark_id]
+  Y = Y_np[:,landmark_id]
+  Z = Z_np[:,landmark_id]
+
+  print(X[:5])
+  print(Y[:5])
+  print(Z[:5])
+
+  # Create a 3D scatter plot for the initial position
+  fig = go.Figure(data=[go.Scatter3d(x=[X[0]], y=[Y[0]], z=[Z[0]], mode='markers', marker=dict(size=10))])
+
+  # Add a trace for the trajectory
+  fig.add_trace(go.Scatter3d(x=X, y=Y, z=Z, mode='lines', line=dict(color='blue', width=2)))
+
+  # Set axis labels and plot title
+  fig.update_layout(scene=dict(xaxis_title='X', yaxis_title='Y', zaxis_title='Z'), title='Landmark Movement')
+
+  # Create animation frames
+  frames = [go.Frame(data=[go.Scatter3d(x=X[:k+1], y=Y[:k+1], z=Z[:k+1])], name=str(k)) for k in range(1, len(X))]
+
+  # Add the frames to the figure
+  fig.update(frames=frames)
+
+  # Define animation settings
+  animation_settings = dict(frame=dict(duration=50, redraw=True), fromcurrent=True)
+
+  # Add play and pause buttons to the animation
+  fig.update_layout(updatemenus=[dict(type='buttons', showactive=False, buttons=[dict(label='Play', method='animate', args=[None, animation_settings]),
+                                                                            dict(label='Pause', method='animate', args=[[None], animation_settings])])])
+
+  # Set initial frame
+  fig.update_layout(updatemenus=[dict(type='buttons', showactive=False, buttons=[dict(label='Play', method='animate', args=[None, animation_settings]),
+                                                                            dict(label='Pause', method='animate', args=[[None], animation_settings])])],
+                    sliders=[dict(currentvalue={'prefix': 'Frame: '}, steps=[dict(args=[[k], animation_settings],
+                                                                                  label=str(k),
+                                                                                  method='animate') for k in range(1, len(X))])])
+
+  # fig.update_layout(scene = dict(xaxis=dict(range=[-2,2], autorange=False),
+  #                               yaxis=dict(range=[-1,1], autorange=False),
+  #                               zaxis=dict(range=[-1,1], autorange=False),
+
+
+  #                               camera = {"eye": {"x": 1, "y": 1, "z": 2}}
+  #                               ))
   return fig

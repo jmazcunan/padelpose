@@ -2,3 +2,4 @@ opencv-python-headless
 mediapipe
 ffmpeg-python
 av
+plotly-express
