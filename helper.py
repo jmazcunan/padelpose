@@ -303,7 +303,7 @@ def plotly_3d_landmarks(landmark_list: landmark_pb2.NormalizedLandmarkList,
                 y=cn2["ys"],
                 z=cn2["zs"],
                 mode="lines",
-                line={"color": "black", "width": 5},
+                line={"color": "white", "width": 5},
                 name="connections",
             )
         ]
@@ -359,6 +359,7 @@ def draw_3d_world_plotly(detection_result):
     #   pose_landmarks_proto,
     #   solutions.pose.POSE_CONNECTIONS,
     #   solutions.drawing_styles.get_default_pose_landmarks_style())
+  fig.update_layout(width = 400, showlegend=False)
   return fig
 
 def plot_landmark_trajectory(X,Y,Z,VIS,landmark_id):
