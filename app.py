@@ -375,4 +375,4 @@ if st.session_state.processed:
     with tabs[1]:
         #st.write(len(st.session_state.figs))
         sel_frame = st.slider("Select frame", 1, len(st.session_state.figs), 1)
-        st.plotly_chart(st.session_state.figs[sel_frame-1])
+        st.plotly_chart(st.session_state.figs[sel_frame-1], width=600)
