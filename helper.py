@@ -57,6 +57,7 @@ def draw_landmark_custom(
     image: np.ndarray, 
     landmark_ids,
     landmark_list: landmark_pb2.NormalizedLandmarkList,
+    previous_landmark_px = [],
     connections: Optional[List[Tuple[int, int]]] = None,
     landmark_drawing_spec: Union[DrawingSpec,
                                  Mapping[int, DrawingSpec]] = DrawingSpec(
@@ -92,6 +93,9 @@ def draw_landmark_custom(
     raise ValueError('Input image must contain three channel bgr data.')
   image_rows, image_cols, _ = image.shape
   idx_to_coordinates = {}
+
+  new_landmarks = []
+
   for idx, landmark in enumerate(landmark_list.landmark):
     if ((landmark.HasField('visibility') and
          landmark.visibility < _VISIBILITY_THRESHOLD) or
@@ -133,11 +137,22 @@ def draw_landmark_custom(
         # Fill color into the circle
         cv2.circle(image, landmark_px, drawing_spec.circle_radius,
                   drawing_spec.color, drawing_spec.thickness)
+
+        for prev_landmark_px in previous_landmark_px:
+          cv2.circle(image, prev_landmark_px, circle_border_radius, WHITE_COLOR, drawing_spec.thickness)
+
+
+        new_landmarks.append(landmark_px)
+        #print(previous_landmark_px)
+        #a = input()
+
+  return new_landmarks
+  
       
-def draw_landmarks_on_image(rgb_image, detection_result, landmark_id=None):
+def draw_landmarks_on_image(rgb_image, detection_result, landmark_id=[], previous_landmark_px = []):
   pose_landmarks_list = detection_result.pose_landmarks
   annotated_image = np.copy(rgb_image)
-
+  
   # Loop through the detected poses to visualize.
   for idx in range(len(pose_landmarks_list)):
     pose_landmarks = pose_landmarks_list[idx]
@@ -148,18 +163,21 @@ def draw_landmarks_on_image(rgb_image, detection_result, landmark_id=None):
       landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z) for landmark in pose_landmarks
     ])
 
-    if landmark_id == None:
+    if landmark_id == []:
       solutions.drawing_utils.draw_landmarks(
         annotated_image,
         pose_landmarks_proto,
         solutions.pose.POSE_CONNECTIONS,
         solutions.drawing_styles.get_default_pose_landmarks_style())
     else:
-      draw_landmark_custom(
-        annotated_image, landmark_id,
+      #print(previous_landmark_px)
+      previous_landmark_px.extend(draw_landmark_custom(
+        annotated_image, 
+        landmark_id,
         pose_landmarks_proto,
+        previous_landmark_px,
         solutions.pose.POSE_CONNECTIONS,
-        solutions.drawing_styles.get_default_pose_landmarks_style())
+        solutions.drawing_styles.get_default_pose_landmarks_style()))
       
   return annotated_image
 

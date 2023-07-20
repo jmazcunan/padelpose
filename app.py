@@ -18,7 +18,7 @@ import os
 import tempfile
 
 from helper import draw_landmarks_on_image, download
-
+from landmark_ids import pose_landmark_id
 
 # url = 'https://cdn.pixabay.com/photo/2019/03/12/20/39/girl-4051811_960_720.jpg'
 # r = requests.get(url, allow_redirects=True)
@@ -57,209 +57,244 @@ landmarker = PoseLandmarker.create_from_options(options)
 #uploaded_video = st.file_uploader("Video upload, ",accept_multiple_files=False,   type=["mp4"])
 
 ## Get Video # https://github.com/mpolinowski/streamLit-cv-mediapipe
-stframe = st.empty()
-video_file_buffer = st.file_uploader("Video upload, ",accept_multiple_files=False,   type=["mp4"])
-temp_file = tempfile.NamedTemporaryFile(delete=False)
 
-if not video_file_buffer:
-    pass
-    # video = cv2.VideoCapture(DEMO_VIDEO)
-    # temp_file.name = DEMO_VIDEO
+if "processed" not in st.session_state:
+    st.session_state.processed = False
 
-else:
-    temp_file.write(video_file_buffer.read())
-    cap = cv2.VideoCapture(temp_file.name)
+with st.expander("Video input", expanded = not(st.session_state.processed)):
+    stframe = st.empty()
+    video_file_buffer = st.file_uploader("Video upload",accept_multiple_files=False,   type=["mp4"])
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
 
-width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-fps_input = int(cap.get(cv2.CAP_PROP_FPS))
-st.info(str(width)+"-"+str(height)+" - " + str(fps_input))
+    if not video_file_buffer:
+        st.session_state.processed = False
+        st.stop()
+        # video = cv2.VideoCapture(DEMO_VIDEO)
+        # temp_file.name = DEMO_VIDEO
 
-## Recording
-# codec = cv2.VideoWriter_fourcc('a','v','c','1')
-#codec = cv2.VideoWriter_fourcc(*"mp4v")
-# codec = cv2.VideoWriter_fourcc('M','J','P','G')
-# codec = cv2.VideoWriter_fourcc(*'XVID')
+    else:
+        temp_file.write(video_file_buffer.read())
+        cap = cv2.VideoCapture(temp_file.name)
 
-codec = cv2.VideoWriter_fourcc(*'MJPG')
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps_input = int(cap.get(cv2.CAP_PROP_FPS))
+    st.info(str(width)+"-"+str(height)+" - " + str(fps_input))
 
-import io
-import av
+    ## Recording
+    # codec = cv2.VideoWriter_fourcc('a','v','c','1')
+    #codec = cv2.VideoWriter_fourcc(*"mp4v")
+    # codec = cv2.VideoWriter_fourcc('M','J','P','G')
+    # codec = cv2.VideoWriter_fourcc(*'XVID')
 
-# output_filename = 'output1.mp4'+".tmp"
-# output = cv2.VideoWriter(output_filename, codec, fps_input, (width,height))
+    codec = cv2.VideoWriter_fourcc(*'MJPG')
 
-output_memory_file = io.BytesIO()
-output = av.open(output_memory_file, 'w', format="mp4")  # Open "in memory file" as MP4 video output
-stream = output.add_stream('h264', str(fps_input))  # Add H.264 video stream to the MP4 container, with framerate = fps.
-stream.width = width  # Set frame width
-stream.height = height  # Set frame height
-#stream.pix_fmt = 'yuv444p'   # Select yuv444p pixel format (better quality than default yuv420p).
-stream.pix_fmt = 'yuv420p'   # Select yuv420p pixel format for wider compatibility.
-stream.options = {'crf': '17'}  # Select low crf for high quality (the price is larger file size).
+    import io
+    import av
+
+    # output_filename = 'output1.mp4'+".tmp"
+    # output = cv2.VideoWriter(output_filename, codec, fps_input, (width,height))
+
+    output_memory_file = io.BytesIO()
+    output = av.open(output_memory_file, 'w', format="mp4")  # Open "in memory file" as MP4 video output
+    stream = output.add_stream('h264', str(fps_input))  # Add H.264 video stream to the MP4 container, with framerate = fps.
+    stream.width = width  # Set frame width
+    stream.height = height  # Set frame height
+    #stream.pix_fmt = 'yuv444p'   # Select yuv444p pixel format (better quality than default yuv420p).
+    stream.pix_fmt = 'yuv420p'   # Select yuv420p pixel format for wider compatibility.
+    stream.options = {'crf': '17'}  # Select low crf for high quality (the price is larger file size).
 
 
 
-save_output = True
+    save_output = True
 
-if st.button("Process"):
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    st.write(fps)
-    frame_timestamp_ms = []
-    frame_timestamp_ms_cont = []
-    mp_images = []
 
-    # Check if camera opened successfully
-    if (cap.isOpened()== False):
-        st.error("Error opening video stream or file")
 
-    last_ms = 0
+    if st.button("Process"):
+        
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        # st.write(fps)
+        frame_timestamp_ms = []
+        frame_timestamp_ms_cont = []
+        mp_images = []
 
-    # Read until video is completed
-    frame_count = cap.get(7)
+        # Check if camera opened successfully
+        if (cap.isOpened()== False):
+            st.error("Error opening video stream or file")
 
-    while(cap.isOpened()):
-        # Capture frame-by-frame
-        ret, frame = cap.read()
-        if ret == True:
+        last_ms = 0
 
-            numpy_frame_from_opencv = frame.copy()
+        # Read until video is completed
+        frame_count = cap.get(7)
+        # st.write(frame_count)
+        detection_results = []
 
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=numpy_frame_from_opencv)
-            mp_images.append(mp_image)
+        progress_bar = st.progress(0, text="Processing video")
+        
+        frame_idx = 0
 
-            frame_timestamp_ms.append(cap.get(cv2.CAP_PROP_POS_MSEC))
-            frame_timestamp_ms_cont.append(last_ms)
-            last_ms = last_ms+33
+        while(cap.isOpened()):
+            progress_bar.progress(frame_idx/frame_count, text="Processing video: "+str(frame_idx/frame_count))
+            frame_idx+=1
 
-            # current_ms = int(cap.get(cv2.CAP_PROP_POS_MSEC))
+            # Capture frame-by-frame
+            ret, frame = cap.read()
+            if ret == True:
 
-            # pose_landmarker_result = landmarker.detect_for_video(mp_image, timestamp_ms=0)
+                numpy_frame_from_opencv = frame.copy()
 
-            # # STEP 5: Process the detection result. In this case, visualize it.
-            # annotated_image = draw_landmarks_on_image(image.numpy_view(), pose_landmarker_result)
-            # cv2_imshow(cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=numpy_frame_from_opencv)
+                mp_images.append(mp_image)
+
+                frame_timestamp_ms.append(cap.get(cv2.CAP_PROP_POS_MSEC))
+                frame_timestamp_ms_cont.append(last_ms)
+                
+
+                pose_landmarker_result = landmarker.detect_for_video(mp_image, timestamp_ms=last_ms)
+
+                last_ms = last_ms+33
+
+                detection_results.append(pose_landmarker_result)
+
+                # current_ms = int(cap.get(cv2.CAP_PROP_POS_MSEC))
+
+                # pose_landmarker_result = landmarker.detect_for_video(mp_image, timestamp_ms=0)
+
+                # # STEP 5: Process the detection result. In this case, visualize it.
+                # annotated_image = draw_landmarks_on_image(image.numpy_view(), pose_landmarker_result)
+                # cv2_imshow(cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
+                # a=input()
+
+            # Break the loop
+            else:
+                break
+
+        # When everything done, release the video capture object
+        cap.release()
+        st.session_state.mp_images = mp_images
+        st.session_state.detection_results = detection_results
+        st.session_state.processed = True
+        st.experimental_rerun()
+
+        # Closes all the frames
+        # Load the frame rate of the video using OpenCV’s CV_CAP_PROP_FPS
+        # You’ll need it to calculate the timestamp for each frame.
+
+        # Loop through each frame in the video using VideoCapture#read()
+
+        # Convert the frame received from OpenCV to a MediaPipe’s Image object.
+        #frame_timestamp_ms_input = [int(ts) for ts in frame_timestamp_ms_cont]
+
+        # detection_results = []
+if st.session_state.processed:
+    pose_landmark_names = pose_landmark_id.keys()
+    sel_landmark_ids = st.multiselect("Landmark", pose_landmark_id)
+    landmark_ids = [pose_landmark_id[sel_landmark_id] for sel_landmark_id in sel_landmark_ids]
+
+
+    if st.button("Generate video"):
+
+        X = []
+        Y = []
+        Z = []
+        VISIBILITY = []
+        PRESENCE = []
+        figs = []
+        prev_landmarks = []
+        for index, detection_result in enumerate(st.session_state.detection_results):
+            mp_image = st.session_state.mp_images[index]
+            image = mp_image
+            # pose_landmarker_result = landmarker.detect_for_video(mp_image, timestamp_ms=timestamp)
+
+            # detection_results.append(pose_landmarker_result)
+
+            # STEP 5: Process the detection result. In this case, visualize it.
+            annotated_image = draw_landmarks_on_image(image.numpy_view(), detection_result, landmark_ids, prev_landmarks)
+            #cv2_imshow(cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
+
+            # print(pose_landmarker_result)
             # a=input()
 
-        # Break the loop
-        else:
-            break
+            ### !!! OJO, hay pose_landmarks y pose_world_landmarks
+            ## https://developers.google.com/mediapipe/solutions/vision/pose_landmarker/python
 
-    # When everything done, release the video capture object
-    cap.release()
+            if len(detection_result.pose_landmarks) == 0:
+                continue
 
-    # Closes all the frames
-    # Load the frame rate of the video using OpenCV’s CV_CAP_PROP_FPS
-    # You’ll need it to calculate the timestamp for each frame.
+            # print(len(pose_landmarker_result.pose_landmarks))
+            # print(len(pose_landmarker_result.pose_landmarks[0])) #33
 
-    # Loop through each frame in the video using VideoCapture#read()
-
-    # Convert the frame received from OpenCV to a MediaPipe’s Image object.
-    frame_timestamp_ms_input = [int(ts) for ts in frame_timestamp_ms_cont]
-
-    detection_results = []
-
-    X = []
-    Y = []
-    Z = []
-    VISIBILITY = []
-    PRESENCE = []
-    figs = []
-
-    for index, timestamp in enumerate(frame_timestamp_ms_input):
-        mp_image = mp_images[index]
-        image = mp_image
-        pose_landmarker_result = landmarker.detect_for_video(mp_image, timestamp_ms=timestamp)
-
-        detection_results.append(pose_landmarker_result)
-
-        # STEP 5: Process the detection result. In this case, visualize it.
-        annotated_image = draw_landmarks_on_image(image.numpy_view(), pose_landmarker_result, [12,13])
-        #cv2_imshow(cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
-
-        # print(pose_landmarker_result)
-        # a=input()
-
-        ### !!! OJO, hay pose_landmarks y pose_world_landmarks
-        ## https://developers.google.com/mediapipe/solutions/vision/pose_landmarker/python
-
-        if len(pose_landmarker_result.pose_landmarks) == 0:
-            continue
-
-        # print(len(pose_landmarker_result.pose_landmarks))
-        # print(len(pose_landmarker_result.pose_landmarks[0])) #33
-
-        landmarks = pose_landmarker_result.pose_landmarks[0]
+            landmarks = detection_result.pose_landmarks[0]
 
 
-        xs = []
-        ys = []
-        zs = []
-        vis = []
-        pres = []
-        for i in landmarks:
-            # Acquire x, y but don't forget to convert to integer.
-            # x = int(i.x * image.shape[1])
-            # y = int(i.y * image.shape[0])
-            # Annotate landmarks or do whatever you want.
-            #cv2.circle(image, (x, y), 5, (0, 255, 0), -1)
-            #keypoint_pos.append((x, y))
-            vis.append(i.visibility)
-            pres.append(i.presence)
+            xs = []
+            ys = []
+            zs = []
+            vis = []
+            pres = []
+            for i in landmarks:
+                # Acquire x, y but don't forget to convert to integer.
+                # x = int(i.x * image.shape[1])
+                # y = int(i.y * image.shape[0])
+                # Annotate landmarks or do whatever you want.
+                #cv2.circle(image, (x, y), 5, (0, 255, 0), -1)
+                #keypoint_pos.append((x, y))
+                vis.append(i.visibility)
+                pres.append(i.presence)
 
-            xs.append(i.x)
-            ys.append(i.y)
-            zs.append(i.z)
+                xs.append(i.x)
+                ys.append(i.y)
+                zs.append(i.z)
 
 
-        X.append(xs)
-        Y.append(ys)
-        Z.append(zs)
-        VISIBILITY.append(vis)
-        PRESENCE.append(pres)
+            X.append(xs)
+            Y.append(ys)
+            Z.append(zs)
+            VISIBILITY.append(vis)
+            PRESENCE.append(pres)
 
-    #     if build_figs:
-    #         figs.append(draw_3d_world_plotly(pose_landmarker_result))
+        #     if build_figs:
+        #         figs.append(draw_3d_world_plotly(pose_landmarker_result))
 
 
 
+
+            if save_output:
+                # output.write(annotated_image)
+                frame = av.VideoFrame.from_ndarray(annotated_image, format='bgr24')  # Convert image from NumPy Array to frame.
+                packet = stream.encode(frame)  # Encode video frame
+                output.mux(packet)
 
         if save_output:
-            # output.write(annotated_image)
-            frame = av.VideoFrame.from_ndarray(annotated_image, format='bgr24')  # Convert image from NumPy Array to frame.
-            packet = stream.encode(frame)  # Encode video frame
+            # output.release()
+            
+            
+            # Flush the encoder
+            packet = stream.encode(None)
             output.mux(packet)
+            output.close()
 
-    if save_output:
-        # output.release()
-        
-        
-        # Flush the encoder
-        packet = stream.encode(None)
-        output.mux(packet)
-        output.close()
-
-        output_memory_file.seek(0)  # Seek to the beginning of the BytesIO.
-        #video_bytes = output_memory_file.read()  # Convert BytesIO to bytes array
-        #st.video(video_bytes)
-        st.video(output_memory_file)  # Streamlit supports BytesIO object - we don't have to convert it to bytes array.
+            output_memory_file.seek(0)  # Seek to the beginning of the BytesIO.
+            #video_bytes = output_memory_file.read()  # Convert BytesIO to bytes array
+            #st.video(video_bytes)
+            st.video(output_memory_file)  # Streamlit supports BytesIO object - we don't have to convert it to bytes array.
 
 
 
 
-        # os.system('ffmpeg -i {} -vcodec libx264 {}'.format(output_filename, output_filename.replace('.tmp', '')))
+            # os.system('ffmpeg -i {} -vcodec libx264 {}'.format(output_filename, output_filename.replace('.tmp', '')))
 
-        # video_file = open(output_filename.replace('.tmp', ''), 'rb')
-        # video_bytes = video_file.read()
+            # video_file = open(output_filename.replace('.tmp', ''), 'rb')
+            # video_bytes = video_file.read()
 
-        # st.video(video_bytes)
+            # st.video(video_bytes)
 
 
-        # os.system('ffmpeg -i {} -vcodec libx264 {}'.format(output_filename, output_filename.replace('.tmp', '')))
+            # os.system('ffmpeg -i {} -vcodec libx264 {}'.format(output_filename, output_filename.replace('.tmp', '')))
 
-        # video_file = open(output_filename.replace('.tmp', ''), 'rb')
-        # video_bytes = video_file.read()
+            # video_file = open(output_filename.replace('.tmp', ''), 'rb')
+            # video_bytes = video_file.read()
 
-        # st.video(video_bytes)
+            # st.video(video_bytes)
 
-    #     """
+        #     """
