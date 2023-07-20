@@ -83,10 +83,22 @@ st.info(str(width)+"-"+str(height)+" - " + str(fps_input))
 
 codec = cv2.VideoWriter_fourcc(*'MJPG')
 
+import io
+import av
+
+# output_filename = 'output1.mp4'+".tmp"
+# output = cv2.VideoWriter(output_filename, codec, fps_input, (width,height))
+
+output_memory_file = io.BytesIO()
+output = av.open(output_memory_file, 'w', format="mp4")  # Open "in memory file" as MP4 video output
+stream = output.add_stream('h264', str(fps_input))  # Add H.264 video stream to the MP4 container, with framerate = fps.
+stream.width = width  # Set frame width
+stream.height = height  # Set frame height
+#stream.pix_fmt = 'yuv444p'   # Select yuv444p pixel format (better quality than default yuv420p).
+stream.pix_fmt = 'yuv420p'   # Select yuv420p pixel format for wider compatibility.
+stream.options = {'crf': '17'}  # Select low crf for high quality (the price is larger file size).
 
 
-output_filename = 'output1.mp4'+".tmp"
-output = cv2.VideoWriter(output_filename, codec, fps_input, (width,height))
 
 save_output = True
 
@@ -162,7 +174,7 @@ if st.button("Process"):
         detection_results.append(pose_landmarker_result)
 
         # STEP 5: Process the detection result. In this case, visualize it.
-        annotated_image = draw_landmarks_on_image(image.numpy_view(), pose_landmarker_result)
+        annotated_image = draw_landmarks_on_image(image.numpy_view(), pose_landmarker_result, [12,13])
         #cv2_imshow(cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
 
         # print(pose_landmarker_result)
@@ -213,16 +225,33 @@ if st.button("Process"):
 
 
         if save_output:
-            output.write(annotated_image)
+            # output.write(annotated_image)
+            frame = av.VideoFrame.from_ndarray(annotated_image, format='bgr24')  # Convert image from NumPy Array to frame.
+            packet = stream.encode(frame)  # Encode video frame
+            output.mux(packet)
 
     if save_output:
-        output.release()
+        # output.release()
+        
+        
+        # Flush the encoder
+        packet = stream.encode(None)
+        output.mux(packet)
+        output.close()
 
-        os.system('ffmpeg -i {} -vcodec libx264 {}'.format(output_filename, output_filename.replace('.tmp', '')))
+        output_memory_file.seek(0)  # Seek to the beginning of the BytesIO.
+        #video_bytes = output_memory_file.read()  # Convert BytesIO to bytes array
+        #st.video(video_bytes)
+        st.video(output_memory_file)  # Streamlit supports BytesIO object - we don't have to convert it to bytes array.
 
-        video_file = open(output_filename.replace('.tmp', ''), 'rb')
-        video_bytes = video_file.read()
 
-        st.video(video_bytes)
+
+
+        # os.system('ffmpeg -i {} -vcodec libx264 {}'.format(output_filename, output_filename.replace('.tmp', '')))
+
+        # video_file = open(output_filename.replace('.tmp', ''), 'rb')
+        # video_bytes = video_file.read()
+
+        # st.video(video_bytes)
 
     #     """
