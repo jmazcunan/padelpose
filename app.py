@@ -254,4 +254,12 @@ if st.button("Process"):
 
         # st.video(video_bytes)
 
+
+        # os.system('ffmpeg -i {} -vcodec libx264 {}'.format(output_filename, output_filename.replace('.tmp', '')))
+
+        # video_file = open(output_filename.replace('.tmp', ''), 'rb')
+        # video_bytes = video_file.read()
+
+        # st.video(video_bytes)
+
     #     """
