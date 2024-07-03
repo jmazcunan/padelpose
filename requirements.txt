@@ -4,3 +4,4 @@ ffmpeg-python
 av
 plotly-express
 joblib
+scikit-learn
