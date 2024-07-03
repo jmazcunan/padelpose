@@ -10,7 +10,7 @@ import math
 import cv2
 import plotly.graph_objects as go
 import pandas as pd
-
+import joblib
 
 
 _PRESENCE_THRESHOLD = 0.5
@@ -205,7 +205,8 @@ def plotly_3d_landmarks(landmark_list: landmark_pb2.NormalizedLandmarkList,
                    connection_drawing_spec: DrawingSpec = DrawingSpec(
                        color=BLACK_COLOR, thickness=5),
                    elevation: int = 10,
-                   azimuth: int = 10):
+                   azimuth: int = 10
+                   ):
   """Plot the landmarks and the connections in matplotlib 3d.
 
   Args:
@@ -289,13 +290,33 @@ def plotly_3d_landmarks(landmark_list: landmark_pb2.NormalizedLandmarkList,
   #print(df)
 #df["lm"] = df.index.map(lambda s: mp_pose.PoseLandmark(s).name).values             ##OPTIONAL: ADD LM FOR HOVER NAMES
   fig = (
-    px.scatter_3d(df, x="z", y="x", z="y")#, hover_name="lm")
-        .update_traces(marker={"color": "red"})
-        .update_layout(
+        px.scatter_3d(df, x="z", y="x", z="y", hover_name=df.index+1)#, )
+            .update_traces(marker={"color": "red"})
+            .update_layout(
             margin={"l": 0, "r": 0, "t": 0, "b": 0},
-            scene={"camera": {"eye": {"x": 2.1, "y": 0, "z": 0}}},
+            scene={
+                "camera": {"eye": {"x": 3, "y": -1, "z": 0.2}},
+                "xaxis": {
+                    "showticklabels": False,
+                    "showgrid": False,
+                    "visible": False,
+                    "range": [-0.4, 0.4]
+                },
+                "yaxis": {
+                    "showticklabels": False,
+                    "showgrid": False,
+                    "visible": False,
+                    "range": [-0.4, 0.4]
+                },
+                "zaxis": {
+                    "showticklabels": False,
+                    "showgrid": False,
+                    "visible": False,
+                    "range": [-1, 1]
+                },
+            },
+            )
         )
-    )
   fig.add_traces(
         [
             go.Scatter3d(
@@ -303,12 +324,84 @@ def plotly_3d_landmarks(landmark_list: landmark_pb2.NormalizedLandmarkList,
                 y=cn2["ys"],
                 z=cn2["zs"],
                 mode="lines",
-                line={"color": "white", "width": 5},
+                line={"color": "blue", "width": 5},
                 name="connections",
             )
         ]
     )
   return fig, cn2
+
+# import matplotlib.pyplot as plt 
+
+# def _normalize_color(color):
+#     return tuple(v / 255. for v in color)
+
+# import streamlit as st
+
+# def plot_landmarks(landmark_list: landmark_pb2.NormalizedLandmarkList,
+#                    connections: Optional[List[Tuple[int, int]]] = None,
+#                    landmark_drawing_spec: DrawingSpec = DrawingSpec(
+#                        color=RED_COLOR, thickness=5),
+#                    connection_drawing_spec: DrawingSpec = DrawingSpec(
+#                        color=BLACK_COLOR, thickness=5),
+#                    elevation: int = 10,
+#                    azimuth: int = 10):
+#     """Plot the landmarks and the connections in matplotlib 3d.
+
+#     Args:
+#       landmark_list: A normalized landmark list proto message to be plotted.
+#       connections: A list of landmark index tuples that specifies how landmarks to
+#         be connected.
+#       landmark_drawing_spec: A DrawingSpec object that specifies the landmarks'
+#         drawing settings such as color and line thickness.
+#       connection_drawing_spec: A DrawingSpec object that specifies the
+#         connections' drawing settings such as color and line thickness.
+#       elevation: The elevation from which to view the plot.
+#       azimuth: the azimuth angle to rotate the plot.
+
+#     Raises:
+#       ValueError: If any connection contains an invalid landmark index.
+#     """
+
+#     if not landmark_list:
+#       return
+#     plt.figure(figsize=(10, 10))
+#     ax = plt.axes(projection='3d')
+#     ax.view_init(elev=elevation, azim=azimuth)
+#     plotted_landmarks = {}
+#     for idx, landmark in enumerate(landmark_list.landmark):
+#       if ((landmark.HasField('visibility') and
+#             landmark.visibility < _VISIBILITY_THRESHOLD) or
+#           (landmark.HasField('presence') and
+#             landmark.presence < _PRESENCE_THRESHOLD)):
+#         continue
+#       ax.scatter3D(
+#           xs=[-landmark.z],
+#           ys=[landmark.x],
+#           zs=[-landmark.y],
+#           color=_normalize_color(landmark_drawing_spec.color[::-1]),
+#           linewidth=landmark_drawing_spec.thickness)
+#       plotted_landmarks[idx] = (-landmark.z, landmark.x, -landmark.y)
+#     if connections:
+#       num_landmarks = len(landmark_list.landmark)
+#       # Draws the connections if the start and end landmarks are both visible.
+#       for connection in connections:
+#         start_idx = connection[0]
+#         end_idx = connection[1]
+#         if not (0 <= start_idx < num_landmarks and 0 <= end_idx < num_landmarks):
+#           raise ValueError(f'Landmark index is out of range. Invalid connection '
+#                             f'from landmark #{start_idx} to landmark #{end_idx}.')
+#         if start_idx in plotted_landmarks and end_idx in plotted_landmarks:
+#           landmark_pair = [
+#               plotted_landmarks[start_idx], plotted_landmarks[end_idx]
+#           ]
+#           ax.plot3D(
+#               xs=[landmark_pair[0][0], landmark_pair[1][0]],
+#               ys=[landmark_pair[0][1], landmark_pair[1][1]],
+#               zs=[landmark_pair[0][2], landmark_pair[1][2]],
+#               color=_normalize_color(connection_drawing_spec.color[::-1]),
+#               linewidth=connection_drawing_spec.thickness)
+#     st.pyplot(ax)
 
 
 def draw_3d_plotly(detection_result):
@@ -359,7 +452,7 @@ def draw_3d_world_plotly(detection_result):
     #   pose_landmarks_proto,
     #   solutions.pose.POSE_CONNECTIONS,
     #   solutions.drawing_styles.get_default_pose_landmarks_style())
-  fig.update_layout(width = 400, showlegend=False)
+  fig.update_layout(height = 600, width = 600, showlegend=False)
   return fig
 
 def plot_landmark_trajectory(X,Y,Z,VIS,landmark_id):
@@ -413,3 +506,15 @@ def plot_landmark_trajectory(X,Y,Z,VIS,landmark_id):
   #                               camera = {"eye": {"x": 1, "y": 1, "z": 2}}
   #                               ))
   return fig
+
+import mediapipe as mp
+
+BaseOptions = mp.tasks.BaseOptions
+PoseLandmarker = mp.tasks.vision.PoseLandmarker
+PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
+VisionRunningMode = mp.tasks.vision.RunningMode
+
+# Create a pose landmarker instance with the video mode:
+options = PoseLandmarkerOptions(
+    base_options=BaseOptions(model_asset_path='pose_landmarker.task'),
+    running_mode=VisionRunningMode.VIDEO)

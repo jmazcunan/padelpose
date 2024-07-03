@@ -32,3 +32,23 @@ pose_landmark_id = {
   "RIGHT_ANKLE" : 28,
   "LEFT_FOOT_INDEX" : 31,
   "RIGHT_FOOT_INDEX" : 32,}
+
+
+landmark_names = [
+        'nose',
+        'left_eye_inner', 'left_eye', 'left_eye_outer',
+        'right_eye_inner', 'right_eye', 'right_eye_outer',
+        'left_ear', 'right_ear',
+        'mouth_left', 'mouth_right',
+        'left_shoulder', 'right_shoulder',
+        'left_elbow', 'right_elbow',
+        'left_wrist', 'right_wrist',
+        'left_pinky_1', 'right_pinky_1',
+        'left_index_1', 'right_index_1',
+        'left_thumb_2', 'right_thumb_2',
+        'left_hip', 'right_hip',
+        'left_knee', 'right_knee',
+        'left_ankle', 'right_ankle',
+        'left_heel', 'right_heel',
+        'left_foot_index', 'right_foot_index',
+    ]
