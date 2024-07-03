@@ -3,3 +3,4 @@ mediapipe
 ffmpeg-python
 av
 plotly-express
+joblib
