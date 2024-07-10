@@ -18,6 +18,7 @@ from landmark_ids import pose_landmark_id
 
 st.set_page_config(page_title="Padel Pose", page_icon="🎾", layout="centered", initial_sidebar_state="auto", menu_items=None)
 
+st.title("PadelPose")
 download(url='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task', filename='pose_landmarker.task')
 
 BaseOptions = mp.tasks.BaseOptions
