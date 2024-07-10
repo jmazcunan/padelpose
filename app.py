@@ -234,15 +234,15 @@ if st.session_state.processed:
 
     full_names_en = {"der": "Forehand",
                   "rev": "Backhand",
-                  "vder": "Forehand volley", 
-                  "vrev": "Backhand volley",
+                  "vde": "Forehand volley", 
+                  "vre": "Backhand volley",
                   "ban": "Bandeja",
                   "rem": "Smash"}
     
     full_names_es = {"der": "Derecha",
                   "rev": "Revés",
-                  "vder": "Volea de derecha", 
-                  "vrev": "Volea de revés",
+                  "vde": "Volea de derecha", 
+                  "vre": "Volea de revés",
                   "ban": "Bandeja",
                   "rem": "Remate"}
     
